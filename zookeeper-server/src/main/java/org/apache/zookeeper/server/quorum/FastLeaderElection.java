@@ -946,7 +946,8 @@ public class FastLeaderElection implements Election {
 
             synchronized (this) {
                 logicalclock.incrementAndGet();
-                //initId 就是myID
+                //initId 就是myID. 这应该是初始化投的基础信息：
+                // myId, zxid, peerEpoch
                 updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch());
             }
 
@@ -954,34 +955,41 @@ public class FastLeaderElection implements Election {
                 "New election. My id = {}, proposed zxid=0x{}",
                 self.getId(),
                 Long.toHexString(proposedZxid));
+
+            //开始发起投票
             sendNotifications();
 
             SyncedLearnerTracker voteSet = null;
 
             /*
              * Loop in which we exchange notifications until we find a leader
+             * 循环等待投票的响应.
              */
-
             while ((self.getPeerState() == ServerState.LOOKING) && (!stop)) {
                 /*
                  * Remove next notification from queue, times out after 2 times
                  * the termination time
+                 * 等待200ms投票响应.
                  */
                 Notification n = recvqueue.poll(notTimeout, TimeUnit.MILLISECONDS);
 
                 /*
                  * Sends more notifications if haven't received enough.
                  * Otherwise processes new notification.
+                 * 200ms超时，没有收到投票的响应。
                  */
                 if (n == null) {
+                    //如果已经发送，则再次发送。
                     if (manager.haveDelivered()) {
                         sendNotifications();
                     } else {
+                        //如果没有发送则检查一下网络连接
                         manager.connectAll();
                     }
 
                     /*
                      * Exponential backoff
+                     * 超时时常增长，但是不会超过最大1分钟
                      */
                     notTimeout = Math.min(notTimeout << 1, maxNotificationInterval);
 
@@ -991,6 +999,10 @@ public class FastLeaderElection implements Election {
                      *
                      * The leader election algorithm does not provide the ability of electing a leader from a single instance
                      * which is in a configuration of 2 instances.
+                     *
+                     * 这里的逻辑不用管，这里比较特殊，是专门为2个节点的集群支持高可用。因为zk正常都是多半以上集群才能正常工作。
+                     * 2个节点正常工作属于一种特殊的集群：QuorumOracleMaj。
+                     * 2节点集群，挂掉一个后，还剩下一个，依然可以对外提供服务（虽然不满足多半以上）。
                      * */
                     if (self.getQuorumVerifier() instanceof QuorumOracleMaj
                             && self.getQuorumVerifier().revalidateVoteset(voteSet, notTimeout != minNotificationInterval)) {
@@ -1002,7 +1014,8 @@ public class FastLeaderElection implements Election {
 
                     LOG.info("Notification time out: {} ms", notTimeout);
 
-                } else if (validVoter(n.sid) && validVoter(n.leader)) {
+                }
+                else if (validVoter(n.sid) && validVoter(n.leader)) {
                     /*
                      * Only proceed if the vote comes from a replica in the current or next
                      * voting view for a replica in the current or next voting view.
@@ -1126,7 +1139,8 @@ public class FastLeaderElection implements Election {
                         LOG.warn("Notification state unrecognized: {} (n.state), {}(n.sid)", n.state, n.sid);
                         break;
                     }
-                } else {
+                }
+                else {
                     if (!validVoter(n.leader)) {
                         LOG.warn("Ignoring notification for non-cluster member sid {} from sid {}", n.leader, n.sid);
                     }
