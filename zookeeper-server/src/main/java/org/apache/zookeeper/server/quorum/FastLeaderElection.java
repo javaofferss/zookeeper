@@ -924,6 +924,8 @@ public class FastLeaderElection implements Election {
              * The votes from the current leader election are stored in recvset. In other words, a vote v is in recvset
              * if v.electionEpoch == logicalclock. The current participant uses recvset to deduce on whether a majority
              * of participants has voted for it.
+             * 当前领导人选举的选票会存储在记录集中。换句话说，如果 v.electionEpoch == 逻辑时钟，则投票 v 属于 recvset。
+             * 当前参与者使用recvset推断是否获得多数参与者投票支持。
              */
             Map<Long, Vote> recvset = new HashMap<Long, Vote>();
 
@@ -933,6 +935,10 @@ public class FastLeaderElection implements Election {
              * Only FOLLOWING or LEADING notifications are stored in outofelection. The current participant could use
              * outofelection to learn which participant is the leader if it arrives late (i.e., higher logicalclock than
              * the electionEpoch of the received notifications) in a leader election.
+             *
+             * 之前的领导人选举的选票以及当前领导人选举的选票都存储在未选举中。注意，处于LOOKING状态的通知不会存储在outofelection中。
+             * 只有跟随或引导通知会被存储在选举外。当前参与者可以通过“未选中”来了解领导者，如果领导者迟到（即比收到通知的选举纪元更高的逻辑时钟）。
+             *
              */
             Map<Long, Vote> outofelection = new HashMap<Long, Vote>();
 
@@ -940,6 +946,7 @@ public class FastLeaderElection implements Election {
 
             synchronized (this) {
                 logicalclock.incrementAndGet();
+                //initId 就是myID
                 updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch());
             }
 
