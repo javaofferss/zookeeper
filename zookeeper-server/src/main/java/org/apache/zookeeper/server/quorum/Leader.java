@@ -664,6 +664,7 @@ public class Leader extends LearnerMaster {
             self.setZabState(QuorumPeer.ZabState.SYNCHRONIZATION);
 
             try {
+                //等待一半以上完成我是新leader的确认。
                 waitForNewLeaderAck(self.getId(), zk.getZxid());
             } catch (InterruptedException e) {
                 shutdown("Waiting for a quorum of followers, only synced with sids: [ "

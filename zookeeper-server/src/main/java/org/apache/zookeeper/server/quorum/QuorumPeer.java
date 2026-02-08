@@ -1501,6 +1501,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                         }
                     } else {
                         try {
+                            //重置reconfigFlag为false
                             reconfigFlagClear();
                             if (shuttingDownLE) {
                                 shuttingDownLE = false;
@@ -1549,6 +1550,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                     LOG.info("LEADING");
                     try {
                         setLeader(makeLeader(logFactory));
+                        //一旦成为lead,lead()方法将会阻塞开始处理lead能力。比如ping 心跳
                         leader.lead();
                         setLeader(null);
                     } catch (Exception e) {
@@ -1585,7 +1587,9 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             LOG.warn("PeerState set to LOOKING");
             return;
         }
-
+        //这里设置leading, 然后会面会把reconfigFlag设置为false.
+        //提供了再次判断自己是否是leader的机会，如果还不是leader.则
+        //将会盖层looking. 执行上面的if语句
         if (getId() == getCurrentVote().getId()) {
             setPeerState(ServerState.LEADING);
             LOG.debug("PeerState set to LEADING");
